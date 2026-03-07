@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    restart: always
+
+  backend:
+    build: .
+    ports:
+      - "${PORT:-5000}:5000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/jobs:/tmp/jobs
+    depends_on:
+      - redis
+      - mongo
+    environment:
+      - PORT=${PORT:-5000}
+      - MONGO_URI=mongodb://mongo:27017/online-compiler
+      - REDIS_URL=redis://redis:6379
+      - CLIENT_URL=${CLIENT_URL:-http://localhost:3000}
+      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-5}
+    restart: always
