@@ -11,8 +11,8 @@ const errorHandler = require('./middleware/errorHandler');
 const socketService = require('./services/socket.service');
 const { processJobs } = require('./services/worker.service');
 
-// Initialize Express 
-const app = express();
+// Initialize Express  
+const app = express(); 
 const server = http.createServer(app);
 
 // Connect to MongoDB
@@ -58,7 +58,7 @@ app.use(errorHandler);
 socketService.init(server, process.env.CLIENT_URL || 'http://localhost:3000');
 
 // Start Server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   logger.info(`Compiler Backend Server running on port ${PORT}`);
 });

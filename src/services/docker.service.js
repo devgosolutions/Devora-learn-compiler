@@ -50,7 +50,7 @@ const runCode = async (language, code, stdin, onStdout, onStderr) => {
       '--memory-swap', '256m',
       '--pids-limit', '50',
       '--read-only',
-      '--tmpfs', '/tmp:rw,size=64m',
+      '--tmpfs', '/tmp:rw,exec,size=64m',
       '--security-opt', 'no-new-privileges',
       '-u', '1000:1000',
       '-v', `${jobDir}:/code:ro`,

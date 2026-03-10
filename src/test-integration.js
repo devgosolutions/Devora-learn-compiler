@@ -2,8 +2,8 @@ const axios = require('axios');
 const io = require('socket.io-client');
 const { v4: uuidv4 } = require('uuid');
 
-const API_URL = 'http://localhost:5000/api/execute';
-const SOCKET_URL = 'http://localhost:5000';
+const API_URL = 'http://localhost:5001/api/execute';
+const SOCKET_URL = 'http://localhost:5001';
 
 const testExec = async (language, code, stdin = '') => {
   console.log(`\n--- Testing ${language.toUpperCase()} ---`);
