@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 
 const executeCode = async (req, res, next) => {
   try {
-    const { code, language, stdin } = req.body;
+    const { code, language, stdin, timeout } = req.body;
     const socketId = req.headers['x-socket-id'];
     const jobId = uuidv4();
 
@@ -29,6 +29,7 @@ const executeCode = async (req, res, next) => {
       code,
       stdin,
       socketId,
+      timeout,
     });
 
     // Emit queued event if socketId is provided and socket service is ready

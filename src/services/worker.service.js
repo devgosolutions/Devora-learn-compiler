@@ -1,6 +1,7 @@
 const { codeExecutionQueue } = require('./queue.service');
 const dockerService = require('./docker.service');
 const socketService = require('./socket.service');
+const activeJobs = require('./activeJobs');
 const Submission = require('../models/Submission');
 const logger = require('../utils/logger');
 const { LIMITS } = require('../config/constants');
@@ -9,7 +10,7 @@ const processJobs = () => {
   const concurrency = parseInt(process.env.WORKER_CONCURRENCY) || 5;
 
   codeExecutionQueue.process(concurrency, async (job) => {
-    const { jobId, language, code, stdin, socketId } = job.data;
+    const { jobId, language, code, stdin, socketId, timeout } = job.data;
     
     logger.info(`Starting job execution for ID: ${jobId}, language: ${language}`);
     
@@ -34,8 +35,15 @@ const processJobs = () => {
     };
 
     try {
-      // 2. Call docker.service runCode()
-      const result = await dockerService.runCode(language, code, stdin, onStdout, onStderr);
+      // 2. Call docker.service runCode(); register stdin handles via onSpawn so
+      //    they are available immediately after the process starts, not after it finishes.
+      const result = await dockerService.runCode(
+        language, code, stdin, onStdout, onStderr,
+        (handles) => activeJobs.set(jobId, handles),
+        timeout
+      );
+
+      activeJobs.delete(jobId);
 
       // 4. On done → emit job:done
       socketService.emitToJob(jobId, 'job:done', {
@@ -59,6 +67,7 @@ const processJobs = () => {
 
       return { success: true, ...result };
     } catch (error) {
+      activeJobs.delete(jobId);
       logger.error(`Job processing failed for ID: ${jobId}:`, error);
 
       // Handle failure

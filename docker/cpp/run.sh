@@ -7,9 +7,4 @@ if [ $? -ne 0 ]; then
 fi
 
 chmod +x /tmp/out
-
-if [ -f /code/stdin.txt ]; then
-    /tmp/out < /code/stdin.txt
-else
-    /tmp/out
-fi
+/tmp/out

@@ -1,5 +1,6 @@
 const socketIo = require('socket.io');
 const logger = require('../utils/logger');
+const activeJobs = require('./activeJobs');
 
 let io;
 
@@ -18,6 +19,24 @@ const init = (server, clientUrl) => {
     socket.on('join:job', (jobId) => {
       socket.join(`job:${jobId}`);
       logger.info(`Socket ${socket.id} joined room job:${jobId}`);
+    });
+
+    socket.on('job:stdin', ({ jobId, data }) => {
+      const job = activeJobs.get(jobId);
+      if (job) {
+        job.writeStdin(data + '\n');
+      } else {
+        logger.warn(`job:stdin received for unknown or finished job: ${jobId}`);
+      }
+    });
+
+    socket.on('job:stdin:close', ({ jobId }) => {
+      const job = activeJobs.get(jobId);
+      if (job) {
+        job.closeStdin();
+      } else {
+        logger.warn(`job:stdin:close received for unknown or finished job: ${jobId}`);
+      }
     });
 
     socket.on('disconnect', () => {

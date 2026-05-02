@@ -25,6 +25,15 @@ const executeValidator = (req, res, next) => {
       .messages({
         'string.max': `Stdin must be at most ${LIMITS.MAX_STDIN_SIZE} characters long`,
       }),
+    timeout: Joi.number()
+      .integer()
+      .min(1000)
+      .max(120000)
+      .optional()
+      .messages({
+        'number.min': 'Timeout must be at least 1000ms',
+        'number.max': 'Timeout must be at most 120000ms',
+      }),
   });
 
   const { error } = schema.validate(req.body);

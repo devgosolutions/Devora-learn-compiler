@@ -7,7 +7,9 @@ const { TIMEOUTS, LIMITS } = require('../config/constants');
 
 const BASE_JOBS_DIR = process.env.JOBS_DIR || '/tmp/jobs';
 
-const runCode = async (language, code, stdin, onStdout, onStderr) => {
+// onSpawn(handles) is called synchronously after the Docker process starts,
+// with { writeStdin, closeStdin } — before execution completes.
+const runCode = async (language, code, stdin, onStdout, onStderr, onSpawn, timeoutOverride) => {
   const jobId = uuidv4();
   const jobDir = path.resolve(BASE_JOBS_DIR, jobId);
   
@@ -22,7 +24,6 @@ const runCode = async (language, code, stdin, onStdout, onStderr) => {
 
   const fileName = fileNames[language];
   const codePath = path.join(jobDir, fileName);
-  const stdinPath = path.join(jobDir, 'stdin.txt');
   let stdoutSize = 0;
   let stderrSize = 0;
 
@@ -33,17 +34,12 @@ const runCode = async (language, code, stdin, onStdout, onStderr) => {
     // 2. Write code
     await fs.writeFile(codePath, code);
 
-    // 3. Write stdin if provided
-    if (stdin) {
-      await fs.writeFile(stdinPath, stdin);
-    }
-
     const startTime = Date.now();
-    const timeout = TIMEOUTS[language] || 10000;
+    const timeout = timeoutOverride ?? TIMEOUTS[language] ?? 10000;
 
     // 4. Docker command
     const args = [
-      'run', '--rm',
+      'run', '--rm', '-i',
       '--network', 'none',
       '--cpus', '1.0',
       '--memory', '256m',
@@ -61,6 +57,26 @@ const runCode = async (language, code, stdin, onStdout, onStderr) => {
     logger.info(`Starting execution for job: ${jobId}, language: ${language}`);
 
     const dockerProcess = spawn('docker', args);
+
+    // Pipe any pre-provided stdin immediately, then leave the pipe open for
+    // additional writes via writeStdin() until the caller calls closeStdin().
+    if (stdin) {
+      dockerProcess.stdin.write(stdin);
+    }
+
+    const writeStdin = (data) => {
+      if (!dockerProcess.stdin.destroyed) {
+        dockerProcess.stdin.write(data);
+      }
+    };
+
+    const closeStdin = () => {
+      if (!dockerProcess.stdin.destroyed) {
+        dockerProcess.stdin.end();
+      }
+    };
+
+    if (onSpawn) onSpawn({ writeStdin, closeStdin });
 
     // Output buffering and streaming
     dockerProcess.stdout.on('data', (data) => {
@@ -104,7 +120,7 @@ const runCode = async (language, code, stdin, onStdout, onStderr) => {
       });
     });
 
-    return result;
+    return { ...result, writeStdin, closeStdin };
 
   } catch (error) {
     logger.error(`Error in runCode Service for job ${jobId}:`, error);
